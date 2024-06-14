@@ -140,17 +140,22 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     # Fill the matrix with the N and R columns,
     for (r in seq_along(results)) {
         df <- results[[r]]
-        N_columns[seq_len(nrow(df)), r] <- df[, 1]
-        R_columns[seq_len(nrow(df)), r] <- df[, 2]
+        N_columns[seq_len(nrow(df))+r, r] <- df[, 1]
+        R_columns[seq_len(nrow(df))+r, r] <- df[, 2]
     }
 
     nvalues <- as.vector(N_columns)
+    nona <- as.vector(!upper.tri(N_columns,TRUE))
     pvalue <- nvalues
-    pvalue <- pnorm(nvalues,mean(nvalues),sd(nvalues),lower.tail=FALSE)
+    nvalues <- nvalues[nona]
+    pvalue[nona] <- pnorm(nvalues,mean(nvalues),sd(nvalues),lower.tail=FALSE)
     padjust <- pvalue
-    padjust <- p.adjust(pvalue, method="fdr")
+    padjust[nona] <- p.adjust(pvalue[nona], method="fdr")
     pvalue_columns <- matrix(pvalue, nrow = nrow(data))
     padjust_columns <- matrix(padjust, nrow = nrow(data))
+    diag(pvalue_columns) <- diag(padjust_columns) <- 1
+    rownames(pvalue_columns) <- rownames(padjust_columns) <- rownames(data)
+    colnames(pvalue_columns) <- colnames(padjust_columns) <- rownames(data)
 
     structure(list(N = N_columns, R = R_columns, pvalue = pvalue_columns,
         padjust = padjust_columns, iter = iter), class = "multinrcor")
@@ -171,10 +176,10 @@ create_links <- function(x, cutoff = NULL){
         N=as.vector(as.matrix(N)), R=as.vector(as.matrix(R)),
         pvalue=as.vector(as.matrix(pvalue)),
         padjust = as.vector(as.matrix(padjust)))
-    links <- links[!is.na(links$N),]
+    links <- links[links$N>0,]
 
     if(is.numeric(cutoff)){
-        linksfilter <- links[!is.na(links$padjust) & links$padjust<=cutoff,]
+        linksfilter <- links[links$padjust<=cutoff,]
     }else{
         linksfilter <- links
     }
