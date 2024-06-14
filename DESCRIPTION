@@ -1,0 +1,19 @@
+Package: GeneCoexp
+Type: Package
+Version: 0.99.0
+Date: 2024-06-05
+Title: Gene Coexpression With Random Subsampling
+Description: Lorem ipsum dolor si amet.
+License: GPL-2 | GPL-3
+Depends: R (>= 4.3.0)
+Imports: matrixStats, parallel, stats
+Suggests: rD3plot
+NeedsCompilation: no
+biocViews: Software, GeneExpression
+BugReports: https://github.com/BioinfoUSAL/GeneCoexp/issues/
+URL: https://github.com/BioinfoUSAL/GeneCoexp/
+Authors@R: c(
+    person("Andrea","Sanchez", email = "andreasan@usal.es", role = "aut"),
+    person("Carlos", "Prieto", email = "cprietos@usal.es", role = "aut", comment = c(ORCID = "0000-0003-2064-4842")),
+    person("David", "Barrios", email = c("bioinfo@usal.es","metal@usal.es"), role = c("cre","aut"), comment = c(ORCID = "0000-0003-4465-0200"))  
+    )

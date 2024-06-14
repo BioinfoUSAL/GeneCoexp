@@ -1,0 +1,7 @@
+export(multinrcor)
+export(nrcor)
+export(create_links)
+export(create_network)
+importFrom(stats, qt, p.adjust, pnorm, sd)
+importFrom(parallel, detectCores, makeCluster,
+    clusterExport, parLapply, stopCluster)
