@@ -143,22 +143,45 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
         N_columns[seq_len(nrow(df))+r, r] <- df[, 1]
         R_columns[seq_len(nrow(df))+r, r] <- df[, 2]
     }
+    N_columns[upper.tri(N_columns)] <- t(N_columns)[upper.tri(N_columns)]
+    R_columns[upper.tri(R_columns)] <- t(R_columns)[upper.tri(R_columns)]
 
+    pv <- multinrcor_p(N_columns)
+
+    structure(list(N = N_columns, R = R_columns, pvalue = pv[[1]],
+        padjust = pv[[2]], iter = iter), class = "multinrcor")
+}
+
+multinrcor_p <- function(N_columns){
     nvalues <- as.vector(N_columns)
-    nona <- as.vector(!upper.tri(N_columns,TRUE))
-    pvalue <- nvalues
-    nvalues <- nvalues[nona]
-    pvalue[nona] <- pnorm(nvalues,mean(nvalues),sd(nvalues),lower.tail=FALSE)
-    padjust <- pvalue
-    padjust[nona] <- p.adjust(pvalue[nona], method="fdr")
-    pvalue_columns <- matrix(pvalue, nrow = nrow(data))
-    padjust_columns <- matrix(padjust, nrow = nrow(data))
-    diag(pvalue_columns) <- diag(padjust_columns) <- 1
-    rownames(pvalue_columns) <- rownames(padjust_columns) <- rownames(data)
-    colnames(pvalue_columns) <- colnames(padjust_columns) <- rownames(data)
+    means <- as.vector(rep(rowMeans(N_columns), each=nrow(N_columns)))
+    mads <- as.vector(rep(apply(N_columns, 1, mad), each=nrow(N_columns)))
 
-    structure(list(N = N_columns, R = R_columns, pvalue = pvalue_columns,
-        padjust = padjust_columns, iter = iter), class = "multinrcor")
+    pvalue <- pnorm(nvalues, means, mads, lower.tail=FALSE)
+    pvalue_columns <- matrix(pvalue, nrow = nrow(N_columns))
+    
+    for(i in seq_len(ncol(pvalue_columns))){
+        for(j in seq_len(nrow(pvalue_columns))){
+            pvalue_columns[i,j] <- pvalue_columns[j,i] <-
+                min(pvalue_columns[i,j], pvalue_columns[j,i])
+        }
+    }
+
+    padjust <- p.adjust(pvalue, method="fdr")
+    padjust_columns <- matrix(padjust, nrow = nrow(N_columns))
+
+    for(i in seq_len(ncol(padjust_columns))){
+        for(j in seq_len(nrow(padjust_columns))){
+            padjust_columns[i,j] <- padjust_columns[j,i] <-
+                min(padjust_columns[i,j], padjust_columns[j,i])
+        }
+    }
+
+    diag(pvalue_columns) <- diag(padjust_columns) <- 1
+    rownames(pvalue_columns) <- rownames(padjust_columns) <- rownames(N_columns)
+    colnames(pvalue_columns) <- colnames(padjust_columns) <- rownames(N_columns)
+
+    return(list(pvalue_columns,padjust_columns))
 }
 
 create_links <- function(x, cutoff = NULL){
