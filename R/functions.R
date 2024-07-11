@@ -47,11 +47,11 @@ insidenrcor <- function(x, y, r.value, cor_function, sample.size, iter){
     for(k in seq_len(iter)){
         msamp <- y[,sample(ncol(y), sample.size, TRUE),drop=FALSE]
         vsamp <- x[colnames(msamp)]
-        aaa <- cor_function(msamp, vsamp)
-        aaa[is.na(aaa)]<-0
-        aaa[sd0,]<-0
-        matresults[,"N"] <- matresults[,"N"] + (abs(aaa)>r.value)
-        matresults[,"R"] <- matresults[,"R"] + (aaa)
+        cormat <- cor_function(msamp, vsamp)
+        cormat[is.na(cormat)]<-0
+        cormat[sd0,]<-0
+        matresults[,"N"] <- matresults[,"N"] + (abs(cormat)>r.value)
+        matresults[,"R"] <- matresults[,"R"] + (cormat*(abs(cormat)>r.value))
     }
     #matresults[order(matresults[,1], decreasing = TRUE),, drop=FALSE]
     return(matresults)
