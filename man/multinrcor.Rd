@@ -28,4 +28,5 @@ Default value is the amount of CPU cores available on the system.}
 }
 \examples{
 obj <- multinrcor(t(iris[,1:4]))
+plot(obj)
 }

@@ -262,3 +262,9 @@ You can use the cutoff."
         label=label, lcolor="R/iter", lwidth="-log10pvalue", linkBipolar=TRUE)
     return(net)
 }
+
+plot.multinrcor <- function(x, cutoff = 0.05, ...){
+    colors <- rep("black",length(x$N))
+    colors[x$padjust<=cutoff] <- "red"
+    plot(x$N, x$R/x$N, pch=16, col=colors)
+}
