@@ -112,7 +112,7 @@ nrcorcall <- function(ind, data, sample.size, cor.method, iter){
 }
 
 multinrcor <- function(data, cor.method = c("pearson", "spearman"),
-        sample.size = 10, iter = 10000, threads = NULL){
+        mads = FALSE, sample.size = 10, iter = 10000, threads = NULL){
     if(!is.matrix(data)){
         data <- data.matrix(data)
     }
@@ -146,18 +146,23 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     N_columns[upper.tri(N_columns)] <- t(N_columns)[upper.tri(N_columns)]
     R_columns[upper.tri(R_columns)] <- t(R_columns)[upper.tri(R_columns)]
 
-    pv <- multinrcor_p(N_columns)
+    pv <- multinrcor_p(N_columns,mads)
 
     structure(list(N = N_columns, R = R_columns, pvalue = pv[[1]],
         padjust = pv[[2]], iter = iter), class = "multinrcor")
 }
 
-multinrcor_p <- function(N_columns){
+multinrcor_p <- function(N_columns, mads=FALSE){
     nvalues <- as.vector(N_columns)
     means <- as.vector(rep(rowMeans(N_columns), each=nrow(N_columns)))
-    mads <- as.vector(rep(apply(N_columns, 1, mad), each=nrow(N_columns)))
+    pnormsdfn <- sd
+    if(mads){
+        pnormsdfn <- mad
+    }
+    pnormsd <- as.vector(rep(apply(N_columns, 1, pnormsdfn),
+        each=nrow(N_columns)))
 
-    pvalue <- pnorm(nvalues, means, mads, lower.tail=FALSE)
+    pvalue <- pnorm(nvalues, means, pnormsd, lower.tail=FALSE)
     pvalue_columns <- matrix(pvalue, nrow = nrow(N_columns))
     
     for(i in seq_len(ncol(pvalue_columns))){
