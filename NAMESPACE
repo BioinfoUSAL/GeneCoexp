@@ -2,6 +2,7 @@ export(multinrcor)
 export(nrcor)
 export(create_links)
 export(create_network)
+S3method(plot, nrcor)
 S3method(plot, multinrcor)
 importFrom(stats, qt, p.adjust, pnorm, sd, mad)
 importFrom(parallel, detectCores, makeCluster,

@@ -6,7 +6,7 @@ Andrea Sanchez, David Barrios and Carlos Prieto. Bioinformatics, University of
 Salamanca.
 }
 \value{
-This function returns a matrix.
+This function returns a \code{nrcor} object.
 }
 \usage{
 nrcor(x, y, r.value = NA, cor.method = c("pearson", "spearman"),

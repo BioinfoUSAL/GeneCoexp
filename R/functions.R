@@ -39,9 +39,15 @@ get_cor_function <- function(cor.method){
 }
 
 insidenrcor <- function(x, y, r.value, cor_function, sample.size, iter){
-    matresults <- matrix(0,ncol=2,nrow=nrow(y))
-    rownames(matresults) <- rownames(y)
-    colnames(matresults) <- c("N","R")
+    resultsN <- vector(mode="numeric", length=nrow(y))
+    resultsR <- vector(mode="numeric", length=nrow(y))
+    names(resultsN) <- names(resultsR) <- rownames(y)
+
+    samplesmat <- matrix(0, nrow = ncol(y), ncol = ncol(y),
+        dimnames = list(colnames(y), colnames(y)))
+    samplesnum <- vector(mode="numeric", length=ncol(y))
+    names(samplesnum) <- colnames(y)
+
     sd0<-apply(y, 1, sd)<0.1
 
     for(k in seq_len(iter)){
@@ -50,11 +56,16 @@ insidenrcor <- function(x, y, r.value, cor_function, sample.size, iter){
         cormat <- cor_function(msamp, vsamp)
         cormat[is.na(cormat)]<-0
         cormat[sd0,]<-0
-        matresults[,"N"] <- matresults[,"N"] + (abs(cormat)>r.value)
-        matresults[,"R"] <- matresults[,"R"] + (cormat*(abs(cormat)>r.value))
+        abscormatgtrvalue <- abs(cormat)>r.value
+
+        resultsN <- resultsN + abscormatgtrvalue
+        resultsR <- resultsR + (cormat*abscormatgtrvalue)
+        samplesmat[colnames(msamp),colnames(msamp)] <-
+            samplesmat[colnames(msamp),colnames(msamp)] + sum(abscormatgtrvalue)
+        samplesnum[colnames(msamp)] <- samplesnum[colnames(msamp)]+1
     }
-    #matresults[order(matresults[,1], decreasing = TRUE),, drop=FALSE]
-    return(matresults)
+    return(list(N = resultsN, R = resultsR,
+        samplesmat = samplesmat, samplesnum = samplesnum))
 }
 
 nrcor <- function(x, y, r.value=NA, cor.method = c("pearson", "spearman"),
@@ -88,13 +99,13 @@ nrcor <- function(x, y, r.value=NA, cor.method = c("pearson", "spearman"),
     results <- insidenrcor(x,y,r.value,get_cor_function(cor.method),
         sample.size,iter)
 
-    nmean <- results[,'N']
+    nmean <- results[['N']]
     pvalue <- pnorm(nmean, mean(nmean), sd(nmean), lower.tail=FALSE)
-    results <- cbind(results,pvalue)
     padjust <- p.adjust(pvalue, method="fdr")
-    results <- cbind(results,padjust)
 
-    return(results)
+    structure(list(N = results[['N']], R = results[['R']], pvalue = pvalue,
+        padjust = padjust, samplesmat = results[['samplesmat']],
+        samplesnum = results[['samplesnum']], iter = iter), class = "nrcor")
 }
 
 nrcorcall <- function(ind, data, sample.size, cor.method, iter){
@@ -125,8 +136,6 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
         threads <- detectCores()
     }
     cl <- makeCluster(threads)
-    clusterExport(cl, c("nrcor", "r.val", "cor.pearson", "cor.spearman"),
-        envir=environment())
 
     results <- parLapply(cl, seq_len(nrow(data)-1), nrcorcall, data,
         sample.size, cor.method, iter)
@@ -137,11 +146,18 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     N_columns <- R_columns <- matrix(0, nrow = nrow(data),
         ncol = nrow(data), dimnames = list(rownames(data),
         rownames(data)))
+    samplesmat <- matrix(0, nrow = ncol(data), ncol = ncol(data),
+        dimnames = list(colnames(data), colnames(data)))
+    samplesnum <- vector(mode="numeric", length=ncol(data))
     # Fill the matrix with the N and R columns,
-    for (r in seq_along(results)) {
-        df <- results[[r]]
-        N_columns[seq_len(nrow(df))+r, r] <- df[, 1]
-        R_columns[seq_len(nrow(df))+r, r] <- df[, 2]
+    for(r in seq_along(results)) {
+        resN <- results[[r]][['N']]
+        resR <- results[[r]][['R']]
+        N_columns[seq_along(resN)+r, r] <- resN
+        R_columns[seq_along(resR)+r, r] <- resR
+
+        samplesmat <- samplesmat + results[[r]][['samplesmat']]
+        samplesnum <- samplesnum + results[[r]][['samplesnum']]
     }
     N_columns[upper.tri(N_columns)] <- t(N_columns)[upper.tri(N_columns)]
     R_columns[upper.tri(R_columns)] <- t(R_columns)[upper.tri(R_columns)]
@@ -149,7 +165,8 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     pv <- multinrcor_p(N_columns,mads)
 
     structure(list(N = N_columns, R = R_columns, pvalue = pv[[1]],
-        padjust = pv[[2]], iter = iter), class = "multinrcor")
+        padjust = pv[[2]], samplesmat = samplesmat,
+        samplesnum = samplesnum, iter = iter), class = "multinrcor")
 }
 
 multinrcor_p <- function(N_columns, mads=FALSE){
@@ -164,7 +181,7 @@ multinrcor_p <- function(N_columns, mads=FALSE){
 
     pvalue <- pnorm(nvalues, means, pnormsd, lower.tail=FALSE)
     pvalue_columns <- matrix(pvalue, nrow = nrow(N_columns))
-    
+
     for(i in seq_len(ncol(pvalue_columns))){
         for(j in seq_len(nrow(pvalue_columns))){
             pvalue_columns[i,j] <- pvalue_columns[j,i] <-
@@ -263,7 +280,7 @@ You can use the cutoff."
     return(net)
 }
 
-plot.multinrcor <- function(x, cutoff = 0.05, ...){
+plot.multinrcor <- plot.nrcor <- function(x, cutoff = 0.05, ...){
     colors <- rep("black",length(x$N))
     colors[x$padjust<=cutoff] <- "red"
     plot(x$N, x$R/x$N, pch=16, col=colors)
