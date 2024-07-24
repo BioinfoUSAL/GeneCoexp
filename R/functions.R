@@ -38,15 +38,21 @@ get_cor_function <- function(cor.method){
     return(cor_function)
 }
 
-insidenrcor <- function(x, y, r.value, cor_function, sample.size, iter){
+insidenrcor <- function(x, y, r.value, cor_function, sample.size, iter,
+        samples_results){
     resultsN <- vector(mode="numeric", length=nrow(y))
     resultsR <- vector(mode="numeric", length=nrow(y))
     names(resultsN) <- names(resultsR) <- rownames(y)
 
-    samplesmat <- matrix(0, nrow = ncol(y), ncol = ncol(y),
-        dimnames = list(colnames(y), colnames(y)))
-    samplesnum <- vector(mode="numeric", length=ncol(y))
-    names(samplesnum) <- colnames(y)
+    if(samples_results){
+        samplesmat <- matrix(0, nrow = ncol(y), ncol = ncol(y),
+            dimnames = list(colnames(y), colnames(y)))
+        samplesnum <- vector(mode="numeric", length=ncol(y))
+        names(samplesnum) <- colnames(y)
+    }else{
+        samplesmat <- NULL
+        samplesnum <- NULL
+    }
 
     sd0<-apply(y, 1, sd)<0.1
 
@@ -60,16 +66,31 @@ insidenrcor <- function(x, y, r.value, cor_function, sample.size, iter){
 
         resultsN <- resultsN + abscormatgtrvalue
         resultsR <- resultsR + (cormat*abscormatgtrvalue)
-        samplesmat[colnames(msamp),colnames(msamp)] <-
-            samplesmat[colnames(msamp),colnames(msamp)] + sum(abscormatgtrvalue)
-        samplesnum[colnames(msamp)] <- samplesnum[colnames(msamp)]+1
+        if(samples_results){
+            samplesmat[colnames(msamp),colnames(msamp)] <-
+        samplesmat[colnames(msamp),colnames(msamp)] + sum(abscormatgtrvalue)
+            samplesnum[colnames(msamp)] <- samplesnum[colnames(msamp)]+1
+        }
     }
     return(list(N = resultsN, R = resultsR,
         samplesmat = samplesmat, samplesnum = samplesnum))
 }
 
+create_structure <- function(thisclass, N, R, pvalue, padjust, samplesmat,
+        samplesnum, iter){
+    l <- list(N = N, R = R, pvalue = pvalue, padjust = padjust)
+    if(!is.null(samplesmat)){
+        l[['samplesmat']] <- samplesmat
+    }
+    if(!is.null(samplesnum)){
+        l[['samplesnum']] <- samplesnum
+    }
+    l[['iter']] <- iter
+    structure(l, class = thisclass)
+}
+
 nrcor <- function(x, y, r.value=NA, cor.method = c("pearson", "spearman"),
-        sample.size=10, iter=10000){
+        sample.size=10, iter=10000, samples_results=TRUE){
     if(!is.numeric(x)){
         x <- as.numeric(x)
     }
@@ -97,18 +118,18 @@ nrcor <- function(x, y, r.value=NA, cor.method = c("pearson", "spearman"),
     }
 
     results <- insidenrcor(x,y,r.value,get_cor_function(cor.method),
-        sample.size,iter)
+        sample.size,iter,samples_results)
 
     nmean <- results[['N']]
     pvalue <- pnorm(nmean, mean(nmean), sd(nmean), lower.tail=FALSE)
     padjust <- p.adjust(pvalue, method="fdr")
 
-    structure(list(N = results[['N']], R = results[['R']], pvalue = pvalue,
-        padjust = padjust, samplesmat = results[['samplesmat']],
-        samplesnum = results[['samplesnum']], iter = iter), class = "nrcor")
+    return(create_structure("nrcor",results[['N']],results[['R']],
+        pvalue,padjust,results[['samplesmat']],results[['samplesnum']],iter))
 }
 
-nrcorcall <- function(ind, data, sample.size, cor.method, iter){
+nrcorcall <- function(ind, data, sample.size, cor.method, iter,
+        samples_results){
     if(ind<nrow(data)){
         vector <- data[ind,]
         matriz <- data[(ind+1):nrow(data),]
@@ -118,27 +139,26 @@ nrcorcall <- function(ind, data, sample.size, cor.method, iter){
         }
         r.value <- r.val(sample.size)
         insidenrcor(vector, matriz, r.value, get_cor_function(cor.method),
-            sample.size, iter)
+            sample.size, iter, samples_results)
     }
 }
 
 multinrcor <- function(data, cor.method = c("pearson", "spearman"),
-        mads = FALSE, sample.size = 10, iter = 10000, threads = NULL){
+        mads = FALSE, sample.size = 10, iter = 10000, samples_results = TRUE,
+        threads = NULL){
     if(!is.matrix(data)){
         data <- data.matrix(data)
     }
-
     if(is.null(colnames(data))){
         colnames(data) <- paste0("sample_",seq_len(ncol(data)))
     }
-
     if(!is.numeric(threads)){
         threads <- detectCores()
     }
     cl <- makeCluster(threads)
 
     results <- parLapply(cl, seq_len(nrow(data)-1), nrcorcall, data,
-        sample.size, cor.method, iter)
+        sample.size, cor.method, iter, samples_results)
     names(results) <- rownames(data)[-nrow(data)]
     stopCluster(cl)
 
@@ -146,9 +166,13 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     N_columns <- R_columns <- matrix(0, nrow = nrow(data),
         ncol = nrow(data), dimnames = list(rownames(data),
         rownames(data)))
-    samplesmat <- matrix(0, nrow = ncol(data), ncol = ncol(data),
-        dimnames = list(colnames(data), colnames(data)))
-    samplesnum <- vector(mode="numeric", length=ncol(data))
+    if(samples_results){
+        samplesmat <- matrix(0, nrow = ncol(data), ncol = ncol(data),
+            dimnames = list(colnames(data), colnames(data)))
+        samplesnum <- vector(mode="numeric", length=ncol(data))
+    }else{
+        samplesmat <- samplesnum <- NULL
+    }
     # Fill the matrix with the N and R columns,
     for(r in seq_along(results)) {
         resN <- results[[r]][['N']]
@@ -156,17 +180,18 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
         N_columns[seq_along(resN)+r, r] <- resN
         R_columns[seq_along(resR)+r, r] <- resR
 
-        samplesmat <- samplesmat + results[[r]][['samplesmat']]
-        samplesnum <- samplesnum + results[[r]][['samplesnum']]
+        if(samples_results){
+            samplesmat <- samplesmat + results[[r]][['samplesmat']]
+            samplesnum <- samplesnum + results[[r]][['samplesnum']]
+        }
     }
     N_columns[upper.tri(N_columns)] <- t(N_columns)[upper.tri(N_columns)]
     R_columns[upper.tri(R_columns)] <- t(R_columns)[upper.tri(R_columns)]
 
     pv <- multinrcor_p(N_columns,mads)
 
-    structure(list(N = N_columns, R = R_columns, pvalue = pv[[1]],
-        padjust = pv[[2]], samplesmat = samplesmat,
-        samplesnum = samplesnum, iter = iter), class = "multinrcor")
+    return(create_structure("multinrcor", N_columns, R_columns,
+        pv[[1]], pv[[2]], samplesmat, samplesnum, iter))
 }
 
 multinrcor_p <- function(N_columns, mads=FALSE){

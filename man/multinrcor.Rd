@@ -10,7 +10,7 @@ This function returns a \code{multinrcor} object.
 }
 \usage{
 multinrcor(data, cor.method = c("pearson", "spearman"), mads = FALSE,
-    sample.size = 10, iter = 10000, threads = NULL)
+    sample.size = 10, iter = 10000, samples_results = TRUE, threads = NULL)
 }
 \arguments{
 \item{data}{a matrix.}
@@ -20,6 +20,8 @@ multinrcor(data, cor.method = c("pearson", "spearman"), mads = FALSE,
 (default: FALSE)}
 \item{sample.size}{a number indicating the sample size (default: 10)}
 \item{iter}{The number of iterations (default: 10000)}
+\item{samples_results}{Should 'samplesmat' and 'samplesnum' be calculated?
+(Default: TRUE)}
 \item{threads}{The number of CPU threads for calculating the correlation.
 Default value is the amount of CPU cores available on the system.}
 }

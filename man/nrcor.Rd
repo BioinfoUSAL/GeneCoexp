@@ -10,7 +10,7 @@ This function returns a \code{nrcor} object.
 }
 \usage{
 nrcor(x, y, r.value = NA, cor.method = c("pearson", "spearman"),
-    sample.size = 10, iter = 10000)
+    sample.size = 10, iter = 10000, samples_results = TRUE)
 }
 \arguments{
 \item{x}{a vector.}
@@ -20,6 +20,8 @@ nrcor(x, y, r.value = NA, cor.method = c("pearson", "spearman"),
 (or covariance) is to be computed. One of "pearson" (default) or "spearman".}
 \item{sample.size}{a number.}
 \item{iter}{The number of iterations (default: 10000)}
+\item{samples_results}{Should 'samplesmat' and 'samplesnum' be calculated?
+(Default: TRUE)}
 }
 \description{
 \code{nrcor} compute the correlation of \code{x} and \code{y}.
