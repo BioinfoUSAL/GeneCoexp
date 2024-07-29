@@ -90,7 +90,7 @@ create_structure <- function(thisclass, N, R, pvalue, padjust, samplesmat,
 }
 
 nrcor <- function(x, y, r.value=NA, cor.method = c("pearson", "spearman"),
-        sample.size=10, iter=10000, samples_results=TRUE){
+        mads = FALSE, sample.size=10, iter=10000, samples_results=TRUE){
     if(!is.numeric(x)){
         x <- as.numeric(x)
     }
@@ -120,11 +120,17 @@ nrcor <- function(x, y, r.value=NA, cor.method = c("pearson", "spearman"),
     results <- insidenrcor(x,y,r.value,get_cor_function(cor.method),
         sample.size,iter,samples_results)
 
-    nmean <- results[['N']]
-    pvalue <- pnorm(nmean, mean(nmean), sd(nmean), lower.tail=FALSE)
+    nvalues <- results[['N']]
+    means <- mean(nvalues)
+    if(mads){
+        pnormsd <- mad(nvalues)
+    }else{
+        pnormsd <- sd(nvalues)
+    }
+    pvalue <- pnorm(nvalues, means, pnormsd, lower.tail=FALSE)
     padjust <- p.adjust(pvalue, method="fdr")
 
-    return(create_structure("nrcor",results[['N']],results[['R']],
+    return(create_structure("nrcor",nvalues,results[['R']],
         pvalue,padjust,results[['samplesmat']],results[['samplesnum']],iter))
 }
 
@@ -196,13 +202,13 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
 
 multinrcor_p <- function(N_columns, mads=FALSE){
     nvalues <- as.vector(N_columns)
-    means <- as.vector(rep(rowMeans(N_columns), each=nrow(N_columns)))
+    means <- as.vector(rep(rowMeans(N_columns), times=nrow(N_columns)))
     pnormsdfn <- sd
     if(mads){
         pnormsdfn <- mad
     }
     pnormsd <- as.vector(rep(apply(N_columns, 1, pnormsdfn),
-        each=nrow(N_columns)))
+        times=nrow(N_columns)))
 
     pvalue <- pnorm(nvalues, means, pnormsd, lower.tail=FALSE)
     pvalue_columns <- matrix(pvalue, nrow = nrow(N_columns))

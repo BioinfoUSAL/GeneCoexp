@@ -10,7 +10,7 @@ This function returns a \code{nrcor} object.
 }
 \usage{
 nrcor(x, y, r.value = NA, cor.method = c("pearson", "spearman"),
-    sample.size = 10, iter = 10000, samples_results = TRUE)
+    mads = FALSE, sample.size = 10, iter = 10000, samples_results = TRUE)
 }
 \arguments{
 \item{x}{a vector.}
@@ -18,6 +18,8 @@ nrcor(x, y, r.value = NA, cor.method = c("pearson", "spearman"),
 \item{r.value}{a number.}
 \item{cor.method}{a character string indicating which correlation coefficient
 (or covariance) is to be computed. One of "pearson" (default) or "spearman".}
+\item{mads}{Should p value be calculated with 'mad' instead of 'sd'?
+(default: FALSE)}
 \item{sample.size}{a number.}
 \item{iter}{The number of iterations (default: 10000)}
 \item{samples_results}{Should 'samplesmat' and 'samplesnum' be calculated?
