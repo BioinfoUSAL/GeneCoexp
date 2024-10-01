@@ -9,11 +9,13 @@ Salamanca.
 This function returns a data frame of links.
 }
 \usage{
-create_links(x, cutoff = NULL)
+create_links(x, cutoff = NULL, cutoffvar = "padjust")
 }
 \arguments{
 \item{x}{a \code{multinrcor} object.}
-\item{cutoff}{filter links by \code{padjust} value.}
+\item{cutoff}{filter links by the column especified by \code{cutoffvar}.}
+\item{cutoffvar}{Which column should be filtered by cutoff?
+(Default: padjust)}
 }
 \description{
 \code{create_links} extracts the links from a \code{multinrcor} object.

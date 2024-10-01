@@ -76,9 +76,15 @@ insidenrcor <- function(x, y, r.value, cor_function, sample.size, iter,
         samplesmat = samplesmat, samplesnum = samplesnum))
 }
 
-create_structure <- function(thisclass, N, R, pvalue, padjust, samplesmat,
-        samplesnum, iter){
+create_structure <- function(thisclass, N, R, pvalue, padjust,
+        pvaluev, padjustv, samplesmat, samplesnum, iter){
     l <- list(N = N, R = R, pvalue = pvalue, padjust = padjust)
+    if(!is.null(pvaluev)){
+        l[['pvaluev']] <- pvaluev
+    }
+    if(!is.null(padjustv)){
+        l[['padjustv']] <- padjustv
+    }
     if(!is.null(samplesmat)){
         l[['samplesmat']] <- samplesmat
     }
@@ -130,8 +136,9 @@ nrcor <- function(x, y, r.value=NA, cor.method = c("pearson", "spearman"),
     pvalue <- pnorm(nvalues, means, pnormsd, lower.tail=FALSE)
     padjust <- p.adjust(pvalue, method="fdr")
 
-    return(create_structure("nrcor",nvalues,results[['R']],
-        pvalue,padjust,results[['samplesmat']],results[['samplesnum']],iter))
+    return(create_structure("nrcor", nvalues, results[['R']],
+        pvalue, padjust, NULL, NULL,
+        results[['samplesmat']], results[['samplesnum']], iter))
 }
 
 nrcorcall <- function(ind, data, sample.size, cor.method, iter,
@@ -150,8 +157,8 @@ nrcorcall <- function(ind, data, sample.size, cor.method, iter,
 }
 
 multinrcor <- function(data, cor.method = c("pearson", "spearman"),
-        mads = FALSE, sample.size = 10, iter = 10000, samples_results = TRUE,
-        threads = NULL){
+        mads = FALSE, pvalue_var = FALSE, sample.size = 10, iter = 10000,
+        samples_results = TRUE, threads = NULL){
     if(!is.matrix(data)){
         data <- data.matrix(data)
     }
@@ -194,15 +201,8 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     N_columns[upper.tri(N_columns)] <- t(N_columns)[upper.tri(N_columns)]
     R_columns[upper.tri(R_columns)] <- t(R_columns)[upper.tri(R_columns)]
 
-    pv <- multinrcor_p(N_columns,mads)
-
-    return(create_structure("multinrcor", N_columns, R_columns,
-        pv[[1]], pv[[2]], samplesmat, samplesnum, iter))
-}
-
-multinrcor_p <- function(N_columns, mads=FALSE){
     nvalues <- as.vector(N_columns)
-    means <- as.vector(rep(rowMeans(N_columns), times=nrow(N_columns)))
+    means <- mean(nvalues)
     pnormsdfn <- sd
     if(mads){
         pnormsdfn <- mad
@@ -234,10 +234,47 @@ multinrcor_p <- function(N_columns, mads=FALSE){
     rownames(pvalue_columns) <- rownames(padjust_columns) <- rownames(N_columns)
     colnames(pvalue_columns) <- colnames(padjust_columns) <- rownames(N_columns)
 
-    return(list(pvalue_columns,padjust_columns))
+    pvalue_columnsv <- NULL
+    padjust_columnsv <- NULL
+    if(pvalue_var){
+        meansv <- as.vector(rep(rowMeans(N_columns), times=nrow(N_columns)))
+        pvaluev <- pnorm(nvalues, meansv, pnormsd, lower.tail=FALSE)
+        pvalue_columnsv <- matrix(pvaluev, nrow = nrow(N_columns))
+
+        for(i in seq_len(ncol(pvalue_columnsv))){
+            for(j in seq_len(nrow(pvalue_columnsv))){
+                pvalue_columnsv[i,j] <- pvalue_columnsv[j,i] <-
+                    min(pvalue_columnsv[i,j], pvalue_columnsv[j,i])
+            }
+        }
+
+        padjustv <- p.adjust(pvaluev, method="fdr")
+        padjust_columnsv <- matrix(padjustv, nrow = nrow(N_columns))
+
+        for(i in seq_len(ncol(padjust_columnsv))){
+            for(j in seq_len(nrow(padjust_columnsv))){
+                padjust_columnsv[i,j] <- padjust_columnsv[j,i] <-
+                    min(padjust_columnsv[i,j], padjust_columnsv[j,i])
+            }
+        }
+
+        diag(pvalue_columnsv) <- diag(padjust_columnsv) <- 1
+        rownames(pvalue_columnsv) <- rownames(padjust_columnsv) <-
+            rownames(N_columns)
+        colnames(pvalue_columnsv) <- colnames(padjust_columnsv) <-
+            rownames(N_columns)
+    
+        pvalue_columnsv <- pvalue_columnsv
+        padjust_columnsv <- padjust_columnsv
+    }
+
+    return(create_structure("multinrcor", N_columns, R_columns,
+        pvalue_columns, padjust_columns, 
+        pvalue_columnsv, padjust_columnsv,
+        samplesmat, samplesnum, iter))
 }
 
-create_links <- function(x, cutoff = NULL){
+create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
     }
@@ -255,7 +292,12 @@ create_links <- function(x, cutoff = NULL){
     links <- links[links$N>0,]
 
     if(is.numeric(cutoff)){
-        linksfilter <- links[links$padjust<=cutoff,]
+        if(!(cutoffvar %in% c("N","R","pvalue","padjust"))){
+            warning("cutoffvar: must be 'N', 'R', 'pvalue' or 'padjust'")
+            linksfilter <- links
+        }else{
+            linksfilter <- links[links[[cutoffvar]]<=cutoff,]
+        }
     }else{
         linksfilter <- links
     }
@@ -263,8 +305,8 @@ create_links <- function(x, cutoff = NULL){
     return(linksfilter)
 }
 
-create_network <- function(x, cutoff = NULL, nodes = NULL, name = NULL,
-        label = NULL){
+create_network <- function(x, cutoff = NULL, cutoffvar = "padjust",
+        nodes = NULL, name = NULL, label = NULL){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
     }
@@ -272,7 +314,7 @@ create_network <- function(x, cutoff = NULL, nodes = NULL, name = NULL,
         stop("Install 'rD3plot' to create networks.")
     }
 
-    links <- create_links(x,cutoff)
+    links <- create_links(x,cutoff,cutoffvar)
     if(nrow(links)>10000){
         warning(
 "Too much links will cause performance issues in web browser.
@@ -308,6 +350,7 @@ You can use the cutoff."
 
     net <- rD3plot::network_rd3(links=links, nodes=nodes, name=name,
         label=label, lcolor="R/iter", lwidth="-log10pvalue", linkBipolar=TRUE)
+    plot(net)
     return(net)
 }
 

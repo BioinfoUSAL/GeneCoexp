@@ -10,13 +10,16 @@ This function returns a \code{multinrcor} object.
 }
 \usage{
 multinrcor(data, cor.method = c("pearson", "spearman"), mads = FALSE,
-    sample.size = 10, iter = 10000, samples_results = TRUE, threads = NULL)
+    pvalue_var = FALSE, sample.size = 10, iter = 10000, samples_results = TRUE,
+    threads = NULL)
 }
 \arguments{
 \item{data}{a matrix.}
 \item{cor.method}{a character string indicating which correlation coefficient
 (or covariance) is to be computed. One of "pearson" (default) or "spearman".}
 \item{mads}{Should p value be calculated with 'mad' instead of 'sd'?
+(default: FALSE)}
+\item{pvalue_var}{Should p value be calculated by row means?
 (default: FALSE)}
 \item{sample.size}{a number indicating the sample size (default: 10)}
 \item{iter}{The number of iterations (default: 10000)}
