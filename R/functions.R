@@ -207,10 +207,8 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     if(mads){
         pnormsdfn <- mad
     }
-    pnormsd <- as.vector(rep(apply(N_columns, 1, pnormsdfn),
-        times=nrow(N_columns)))
-
-    pvalue <- pnorm(nvalues, means, pnormsd, lower.tail=FALSE)
+    pnormsd <- pnormsdfn(nvalues)
+    pvalue <- round(pnorm(nvalues, means, pnormsd, lower.tail=FALSE),7)
     pvalue_columns <- matrix(pvalue, nrow = nrow(N_columns))
 
     for(i in seq_len(ncol(pvalue_columns))){
@@ -238,34 +236,38 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     padjust_columnsv <- NULL
     if(pvalue_var){
         meansv <- as.vector(rep(rowMeans(N_columns), times=nrow(N_columns)))
-        pvaluev <- pnorm(nvalues, meansv, pnormsd, lower.tail=FALSE)
-        pvalue_columnsv <- matrix(pvaluev, nrow = nrow(N_columns))
+        pnormsdfnv <- sd
+        if(mads){
+            pnormsdfnv <- mad
+        }
+        pnormsdv <- as.vector(rep(apply(N_columns, 1, pnormsdfnv),
+            times=nrow(N_columns)))
 
+        pvaluev <- round(pnorm(nvalues, meansv, pnormsdv, lower.tail=FALSE),7)
+        pvalue_columnsv <- matrix(pvaluev, nrow = nrow(N_columns))
+    
         for(i in seq_len(ncol(pvalue_columnsv))){
             for(j in seq_len(nrow(pvalue_columnsv))){
                 pvalue_columnsv[i,j] <- pvalue_columnsv[j,i] <-
                     min(pvalue_columnsv[i,j], pvalue_columnsv[j,i])
             }
         }
-
+    
         padjustv <- p.adjust(pvaluev, method="fdr")
         padjust_columnsv <- matrix(padjustv, nrow = nrow(N_columns))
-
+    
         for(i in seq_len(ncol(padjust_columnsv))){
             for(j in seq_len(nrow(padjust_columnsv))){
                 padjust_columnsv[i,j] <- padjust_columnsv[j,i] <-
                     min(padjust_columnsv[i,j], padjust_columnsv[j,i])
             }
         }
-
+    
         diag(pvalue_columnsv) <- diag(padjust_columnsv) <- 1
         rownames(pvalue_columnsv) <- rownames(padjust_columnsv) <-
             rownames(N_columns)
         colnames(pvalue_columnsv) <- colnames(padjust_columnsv) <-
             rownames(N_columns)
-    
-        pvalue_columnsv <- pvalue_columnsv
-        padjust_columnsv <- padjust_columnsv
     }
 
     return(create_structure("multinrcor", N_columns, R_columns,
@@ -274,7 +276,7 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
         samplesmat, samplesnum, iter))
 }
 
-create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
+create_links <- function(x, cutoff = NULL){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
     }
@@ -292,12 +294,7 @@ create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
     links <- links[links$N>0,]
 
     if(is.numeric(cutoff)){
-        if(!(cutoffvar %in% c("N","R","pvalue","padjust"))){
-            warning("cutoffvar: must be 'N', 'R', 'pvalue' or 'padjust'")
-            linksfilter <- links
-        }else{
-            linksfilter <- links[links[[cutoffvar]]<=cutoff,]
-        }
+        linksfilter <- links[links[["padjust"]]<=cutoff,]
     }else{
         linksfilter <- links
     }
@@ -305,7 +302,7 @@ create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
     return(linksfilter)
 }
 
-create_network <- function(x, cutoff = NULL, cutoffvar = "padjust",
+create_network <- function(x, cutoff = NULL,
         nodes = NULL, name = NULL, label = NULL){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
@@ -314,7 +311,7 @@ create_network <- function(x, cutoff = NULL, cutoffvar = "padjust",
         stop("Install 'rD3plot' to create networks.")
     }
 
-    links <- create_links(x,cutoff,cutoffvar)
+    links <- create_links(x,cutoff)
     if(nrow(links)>10000){
         warning(
 "Too much links will cause performance issues in web browser.
@@ -354,8 +351,9 @@ You can use the cutoff."
     return(net)
 }
 
-plot.multinrcor <- plot.nrcor <- function(x, cutoff = 0.05, ...){
+plot.multinrcor <- plot.nrcor <- function(x, cutoff = 0.05,
+        cutoffvar = "padjust", ...){
     colors <- rep("black",length(x$N))
-    colors[x$padjust<=cutoff] <- "red"
+    colors[x[[cutoffvar]]<=cutoff] <- "red"
     plot(x$N, x$R/x$N, pch=16, col=colors)
 }
