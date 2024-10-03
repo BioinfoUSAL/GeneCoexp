@@ -276,7 +276,7 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
         samplesmat, samplesnum, iter))
 }
 
-create_links <- function(x, cutoff = NULL){
+create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
     }
@@ -294,7 +294,12 @@ create_links <- function(x, cutoff = NULL){
     links <- links[links$N>0,]
 
     if(is.numeric(cutoff)){
-        linksfilter <- links[links[["padjust"]]<=cutoff,]
+        if(!(cutoffvar %in% c("N","R","pvalue","padjust"))){
+            warning("cutoffvar: must be 'N', 'R', 'pvalue' or 'padjust'")
+            linksfilter <- links
+        }else{
+            linksfilter <- links[links[[cutoffvar]]<=cutoff,]
+        }
     }else{
         linksfilter <- links
     }
@@ -302,7 +307,7 @@ create_links <- function(x, cutoff = NULL){
     return(linksfilter)
 }
 
-create_network <- function(x, cutoff = NULL,
+create_network <- function(x, cutoff = NULL, cutoffvar = "padjust",
         nodes = NULL, name = NULL, label = NULL){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
@@ -311,7 +316,7 @@ create_network <- function(x, cutoff = NULL,
         stop("Install 'rD3plot' to create networks.")
     }
 
-    links <- create_links(x,cutoff)
+    links <- create_links(x,cutoff,cutoffvar)
     if(nrow(links)>10000){
         warning(
 "Too much links will cause performance issues in web browser.
@@ -354,6 +359,10 @@ You can use the cutoff."
 plot.multinrcor <- plot.nrcor <- function(x, cutoff = 0.05,
         cutoffvar = "padjust", ...){
     colors <- rep("black",length(x$N))
-    colors[x[[cutoffvar]]<=cutoff] <- "red"
+    if(cutoffvar=="R"){
+        colors[abs(x$R/x$N)<=cutoff] <- "red"
+    }else{
+        colors[x[[cutoffvar]]<=cutoff] <- "red"
+    }
     plot(x$N, x$R/x$N, pch=16, col=colors)
 }
