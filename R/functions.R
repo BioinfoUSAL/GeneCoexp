@@ -77,7 +77,7 @@ insidenrcor <- function(x, y, r.value, cor_function, sample.size, iter,
 }
 
 create_structure <- function(thisclass, N, R, pvalue, padjust,
-        pvaluev, padjustv, samplesmat, samplesnum, iter){
+        pvaluev, padjustv, samplesmat, samplesnum, iter, variables, samples){
     l <- list(N = N, R = R, pvalue = pvalue, padjust = padjust)
     if(!is.null(pvaluev)){
         l[['pvaluev']] <- pvaluev
@@ -92,6 +92,8 @@ create_structure <- function(thisclass, N, R, pvalue, padjust,
         l[['samplesnum']] <- samplesnum
     }
     l[['iter']] <- iter
+    l[['variables']] <- variables
+    l[['samples']] <- samples
     structure(l, class = thisclass)
 }
 
@@ -136,9 +138,15 @@ nrcor <- function(x, y, r.value=NA, cor.method = c("pearson", "spearman"),
     pvalue <- pnorm(nvalues, means, pnormsd, lower.tail=FALSE)
     padjust <- p.adjust(pvalue, method="fdr")
 
-    return(create_structure("nrcor", nvalues, results[['R']],
+    nvalues <- as.vector(nvalues)
+    rvalues <- as.vector(results[['R']])
+    pvalue <- as.vector(pvalue)
+    padjust <- as.vector(padjust)
+
+    return(create_structure("nrcor", nvalues, rvalues,
         pvalue, padjust, NULL, NULL,
-        results[['samplesmat']], results[['samplesnum']], iter))
+        results[['samplesmat']], results[['samplesnum']], iter,
+        rownames(y), colnames(y)))
 }
 
 nrcorcall <- function(ind, data, sample.size, cor.method, iter,
@@ -273,7 +281,7 @@ multinrcor <- function(data, cor.method = c("pearson", "spearman"),
     return(create_structure("multinrcor", N_columns, R_columns,
         pvalue_columns, padjust_columns, 
         pvalue_columnsv, padjust_columnsv,
-        samplesmat, samplesnum, iter))
+        samplesmat, samplesnum, iter, rownames(data), colnames(data)))
 }
 
 create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
@@ -308,7 +316,7 @@ create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
 }
 
 create_network <- function(x, cutoff = NULL, cutoffvar = "padjust",
-        nodes = NULL, name = NULL, label = NULL){
+        nodes = NULL, name = NULL, label = NULL, directory = NULL){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
     }
@@ -352,17 +360,93 @@ You can use the cutoff."
 
     net <- rD3plot::network_rd3(links=links, nodes=nodes, name=name,
         label=label, lcolor="R/iter", lwidth="-log10pvalue", linkBipolar=TRUE)
-    plot(net)
+    if(is.null(directory)){
+        plot(net)
+    }else{
+        plot(net,dir=directory)
+    }
     return(net)
 }
 
 plot.multinrcor <- plot.nrcor <- function(x, cutoff = 0.05,
         cutoffvar = "padjust", ...){
     colors <- rep("black",length(x$N))
-    if(cutoffvar=="R"){
-        colors[abs(x$R/x$N)<=cutoff] <- "red"
-    }else{
-        colors[x[[cutoffvar]]<=cutoff] <- "red"
+    if(!cutoffvar %in% c('padjust', 'pvalue', 'N', 'R')){
+        cutoff <- NULL
+        cutoffvar <- NULL
+        warning("cutoffvar: must be 'padjust', 'pvalue', 'N' or 'R'")
+    }
+    if(!is.null(cutoff)){
+        if(cutoffvar=="R"){
+            colors[abs(x$R/x$N)>=cutoff] <- "red"
+        }else if(cutoffvar=="N"){
+            colors[x$N>=cutoff] <- "red"
+        }else{
+            colors[x[[cutoffvar]]<=cutoff] <- "red"
+        }
     }
     plot(x$N, x$R/x$N, pch=16, col=colors)
+}
+
+print.nrcor <- function(x, ...){
+    print(data.frame(variables=x$variables, N=x$N, R=(x$R/x$N),
+        pvalue=x$pvalue, padjust=x$padjust), row.names=FALSE)
+}
+
+print.multinrcor <- function(x, ...){
+    ind <- which(upper.tri(x$N, diag = FALSE), arr.ind = TRUE)
+
+    variables <- paste0(dimnames(x$N)[[2]][ind[,2]], " - ",
+        dimnames(x$N)[[1]][ind[,1]])
+
+    tbl <- data.frame(variables = variables,
+        N = x$N[ind], R = (x$R[ind]/x$N[ind]),
+        pvalue = x$pvalue[ind], padjust = x$padjust[ind])
+
+    print(tbl, row.names=FALSE)
+}
+
+results <- function(x, cutoff = NULL, cutoffvar = NULL){
+    if(!(inherits(x,'nrcor') || inherits(x,'multinrcor'))){
+        stop("x: must be a nrcor or multinrcor object")
+    }
+
+    if(inherits(x,'multinrcor')){
+        ind <- which(upper.tri(x$N, diag = FALSE), arr.ind = TRUE)
+
+        variables <- paste0(dimnames(x$N)[[2]][ind[,2]], " - ",
+            dimnames(x$N)[[1]][ind[,1]])
+
+        tbl <- data.frame(variables=variables,
+            N=x$N[ind], R=(x$R[ind]/x$N[ind]),
+            pvalue=x$pvalue[ind], padjust=x$padjust[ind])
+    }else{
+        tbl <- data.frame(variables=x$variables, N=x$N, R=(x$R/x$N),
+            pvalue=x$pvalue, padjust=x$padjust)
+    }
+
+    if(!is.null(cutoff) && (is.null(cutoffvar) ||
+            !(cutoffvar %in% c('padjust', 'pvalue', 'N', 'R')))){
+        cutoff <- NULL
+        cutoffvar <- NULL
+        warning("cutoffvar: must be 'padjust', 'pvalue', 'N' or 'R'")
+    }
+    if(!is.null(cutoff) && !is.numeric(cutoff)){
+        cutoff <- NULL
+        cutoffvar <- NULL
+        warning("cutoff: must be numeric")
+    }
+    if(!is.null(cutoff)){
+        if(cutoffvar=="R"){
+            tbl <- tbl[abs(tbl$R)>=cutoff,]
+        }else if(cutoffvar=="N"){
+            tbl <- tbl[tbl$N>=cutoff,]
+        }else{
+            tbl <- tbl[tbl[[cutoffvar]]<=cutoff,]
+        }
+        tbl <- tbl[order(tbl[[cutoffvar]]),]
+    }else{
+        tbl <- tbl[order(tbl$N),]
+    }
+    return(tbl)
 }

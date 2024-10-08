@@ -10,7 +10,7 @@ This function returns a \code{rD3plot} object.
 }
 \usage{
 create_network(x, cutoff = NULL, cutoffvar = "padjust",
-    nodes = NULL, name = NULL, label = NULL)
+    nodes = NULL, name = NULL, label = NULL, directory = NULL)
 }
 \arguments{
 \item{x}{a \code{multinrcor} object.}
@@ -22,6 +22,8 @@ useful for assigning attributes to each node.}
 \item{name}{name of the column with names in the nodes data frame. It will take
 the first nodes column by default.}
 \item{label}{name of the column with labels in the nodes data frame.}
+\item{directory}{a "character" string representing the directory where the
+resulting web files will be saved.}
 }
 \description{
 \code{create_network} creates a network from a \code{multinrcor} object.
