@@ -370,22 +370,37 @@ You can use the cutoff."
 
 plot.multinrcor <- plot.nrcor <- function(x, cutoff = 0.05,
         cutoffvar = "padjust", ...){
-    colors <- rep("black",length(x$N))
-    if(!cutoffvar %in% c('padjust', 'pvalue', 'N', 'R')){
-        cutoff <- NULL
-        cutoffvar <- NULL
-        warning("cutoffvar: must be 'padjust', 'pvalue', 'N' or 'R'")
+    args <- list(...)
+    args$x <- x$N
+    args$y <- x$R/x$N
+    if(is.null(args$pch)){
+        args$pch <- 16
     }
-    if(!is.null(cutoff)){
-        if(cutoffvar=="R"){
-            colors[abs(x$R/x$N)>=cutoff] <- "red"
-        }else if(cutoffvar=="N"){
-            colors[x$N>=cutoff] <- "red"
-        }else{
-            colors[x[[cutoffvar]]<=cutoff] <- "red"
+    if(is.null(args$col)){
+        colors <- rep("black",length(x$N))
+        if(!cutoffvar %in% c('padjust', 'pvalue', 'N', 'R')){
+            cutoff <- NULL
+            cutoffvar <- NULL
+            warning("cutoffvar: must be 'padjust', 'pvalue', 'N' or 'R'")
         }
+        if(!is.null(cutoff)){
+            if(cutoffvar=="R"){
+                colors[abs(x$R/x$N)>=cutoff] <- "red"
+            }else if(cutoffvar=="N"){
+                colors[x$N>=cutoff] <- "red"
+            }else{
+                colors[x[[cutoffvar]]<=cutoff] <- "red"
+            }
+        }
+        args$col <- colors
     }
-    plot(x$N, x$R/x$N, pch=16, col=colors)
+    if(is.null(args$xlab)){
+        args$xlab <- "N"
+    }
+    if(is.null(args$ylab)){
+        args$ylab <- "R"
+    }
+    do.call(plot,args)
 }
 
 print.nrcor <- function(x, ...){
