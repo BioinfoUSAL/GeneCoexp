@@ -5,7 +5,7 @@ Date: 2024-10-01
 Title: Gene Coexpression With Random Subsampling
 Description: Lorem ipsum dolor si amet.
 License: GPL-2 | GPL-3
-Depends: R (>= 4.4.0)
+Depends: R (>= 3.2.0)
 Imports: matrixStats, parallel, stats
 Suggests: rD3plot
 NeedsCompilation: no
