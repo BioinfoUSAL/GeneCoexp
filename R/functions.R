@@ -301,22 +301,26 @@ create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
         padjust = as.vector(as.matrix(padjust)))
     links <- links[links$N>0,]
 
+    linksfilter <- links
     if(is.numeric(cutoff)){
         if(!(cutoffvar %in% c("N","R","pvalue","padjust"))){
             warning("cutoffvar: must be 'N', 'R', 'pvalue' or 'padjust'")
-            linksfilter <- links
         }else{
-            linksfilter <- links[links[[cutoffvar]]<=cutoff,]
+            if(cutoffvar=="R"){
+                linksfilter <- links[abs(links$R/links$N)>=cutoff,]
+            }else if(cutoffvar=="N"){
+                linksfilter <- links[links[[cutoffvar]]>=cutoff,]
+            }else{
+                linksfilter <- links[links[[cutoffvar]]<=cutoff,]
+            }
         }
-    }else{
-        linksfilter <- links
     }
 
     return(linksfilter)
 }
 
 create_network <- function(x, cutoff = NULL, cutoffvar = "padjust",
-        nodes = NULL, name = NULL, label = NULL, directory = NULL){
+        nodes = NULL, name = NULL, label = NULL, show=TRUE, directory = NULL){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
     }
@@ -325,6 +329,10 @@ create_network <- function(x, cutoff = NULL, cutoffvar = "padjust",
     }
 
     links <- create_links(x,cutoff,cutoffvar)
+    if(is.null(links) || !nrow(links)){
+        warning("No links for this cutoff.")
+        return(NULL)
+    }
     if(nrow(links)>10000){
         warning(
 "Too much links will cause performance issues in web browser.
@@ -360,12 +368,18 @@ You can use the cutoff."
 
     net <- rD3plot::network_rd3(links=links, nodes=nodes, name=name,
         label=label, lcolor="R/iter", lwidth="-log10pvalue", linkBipolar=TRUE)
+
     if(is.null(directory)){
-        plot(net)
-    }else{
-        plot(net,dir=directory)
+        directory <- paste("GeneCoexp",round(as.numeric(Sys.time())),sep="_")
     }
-    return(net)
+    if(identical(show,TRUE)){
+        plot(net,dir=directory)
+    }else{
+        utils::getFromNamespace("objCreate","rD3plot")(net,dir=directory)
+        msg <- paste0("The graph has been generated in the \"",
+            normalizePath(directory),"\" path.")
+        message(msg)
+    }
 }
 
 plot.multinrcor <- plot.nrcor <- function(x, cutoff = 0.05,

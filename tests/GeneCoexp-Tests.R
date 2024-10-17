@@ -10,4 +10,4 @@ obj <- multinrcor(t(iris[,1:4]))
 links <- create_links(obj)
 
 # create network
-net <- create_network(obj)
+net <- create_network(obj, show=FALSE)
