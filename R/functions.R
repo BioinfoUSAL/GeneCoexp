@@ -299,6 +299,7 @@ create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
         N=as.vector(as.matrix(N)), R=as.vector(as.matrix(R)),
         pvalue=as.vector(as.matrix(pvalue)),
         padjust = as.vector(as.matrix(padjust)))
+    links[,'R/N'] <- links[,'R'] / links[,'N']
     links <- links[links$N>0,]
 
     linksfilter <- links
@@ -307,7 +308,7 @@ create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
             warning("cutoffvar: must be 'N', 'R', 'pvalue' or 'padjust'")
         }else{
             if(cutoffvar=="R"){
-                linksfilter <- links[abs(links$R/links$N)>=cutoff,]
+                linksfilter <- links[abs(links[['R/N']])>=cutoff,]
             }else if(cutoffvar=="N"){
                 linksfilter <- links[links[[cutoffvar]]>=cutoff,]
             }else{
@@ -320,7 +321,8 @@ create_links <- function(x, cutoff = NULL, cutoffvar = "padjust"){
 }
 
 create_network <- function(x, cutoff = NULL, cutoffvar = "padjust",
-        nodes = NULL, name = NULL, label = NULL, show=TRUE, directory = NULL){
+        nodes = NULL, name = NULL, label = NULL, linkColor = "R/iter",
+        nodeColor = NULL, show=TRUE, directory = NULL){
     if(!inherits(x,'multinrcor')){
         stop("x: must be a multinrcor object")
     }
@@ -367,7 +369,7 @@ You can use the cutoff."
     }
 
     net <- rD3plot::network_rd3(links=links, nodes=nodes, name=name,
-        label=label, lcolor="R/iter", lwidth="-log10pvalue", linkBipolar=TRUE)
+        label=label, lcolor=linkColor, color=nodeColor, lwidth="-log10pvalue")
 
     if(is.null(directory)){
         directory <- paste("GeneCoexp",round(as.numeric(Sys.time())),sep="_")
