@@ -470,14 +470,16 @@ results <- function(x, cutoff = NULL, cutoffvar = NULL){
     if(!is.null(cutoff)){
         if(cutoffvar=="R"){
             tbl <- tbl[abs(tbl$R)>=cutoff,]
+            tbl <- tbl[order(abs(tbl$R), decreasing=TRUE),]
         }else if(cutoffvar=="N"){
             tbl <- tbl[tbl$N>=cutoff,]
+            tbl <- tbl[order(tbl$N, decreasing=TRUE),]
         }else{
             tbl <- tbl[tbl[[cutoffvar]]<=cutoff,]
+            tbl <- tbl[order(tbl[[cutoffvar]]),]
         }
-        tbl <- tbl[order(tbl[[cutoffvar]]),]
     }else{
-        tbl <- tbl[order(tbl$N),]
+        tbl <- tbl[order(tbl$N, decreasing=TRUE),]
     }
     return(tbl)
 }

@@ -23,8 +23,10 @@ useful for assigning attributes to each node.}
 \item{name}{name of the column with names in the nodes data frame. It will take
 the first nodes column by default.}
 \item{label}{name of the column with labels in the nodes data frame.}
-\item{linkColor}{name of the column with color variable in the links data frame.}
-\item{nodeColor}{name of the column with color variable in the nodes data frame.}
+\item{linkColor}{name of the column with color variable in the links data
+frame.}
+\item{nodeColor}{name of the column with color variable in the nodes data
+frame.}
 \item{show}{open resulting graph in your browser.}
 \item{directory}{a "character" string representing the directory where the
 resulting web files will be saved.}
